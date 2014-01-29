@@ -13,7 +13,7 @@ int cReIsShrinking = 0;
 int control_anim = 0; 
 int control_move = 0;
 // Show if parameters are changing
-float delta_c = 0.01;
+float delta_c = 0.005;
 int delta_scale = 0;
 int delta_move_x = 0;
 int delta_move_y = 0;
@@ -65,10 +65,10 @@ void pressSpecialKey(int key, int x, int y)
 	}
 
 	if (key == GLUT_KEY_F4)
-		delta_c -= 0.005;
+		delta_c -= 0.001;
 
 	if (key == GLUT_KEY_F5)
-		delta_c += 0.005;
+		delta_c += 0.001;
 
 	if (control_anim == 0)
 		return;
@@ -182,7 +182,7 @@ void display(void)
 	for (int x = 0; x < win_width; x++)
 	for (int y = 0; y < win_height; y++)
 	{
-		pixRe = 1.5 * (x - win_width / 2) / (scale* win_width)+move_x;
+		pixRe = (x - win_width / 2) / (scale* win_width)+move_x;
 		pixIm = (y - win_height / 2) / (scale * win_height)+move_y;
 
 		glColor3f(0, 0, 0);
