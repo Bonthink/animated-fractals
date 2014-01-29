@@ -1,164 +1,172 @@
-#include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <glut.h>
-#include <malloc.h>
-#include "ComplexNumbers.h"
 
+// Initial window sizes
+int win_width = 900;
+int win_height = 600;
+// Initial c values
+float color = 0.1;
+int colorIsShrinking = 0;
 
-int screen_width = 1000;
-int screen_height = 700;
-unsigned char* image;
-float transx = 0.0;
-float transy = 0.0;
-float scale = 2.0;
+// Show if animation or move timers work
+int control_anim = 0; 
+int control_move = 0;
+// Show if parameters are changing
+float delta_c = 0.2;
+int delta_scale = 1;
+int delta_move_x = 1;
+int delta_move_y = 1;
+// Parametrs
+float scale = 0.3;
+float move_x = -0.5;
+float move_y = 0;
+float angle = 0;
 
+// Produces color animation
 
-void changeSize(int w, int h) {
+void anim_timer(void)
+{
 
-	screen_width = w;
-	screen_height = h;
+	if (color > 3.5)
+		colorIsShrinking = 1;
+	if (color < -0.5)
+		colorIsShrinking = 0;
 
-	if (h == 0)
-		h = 1;
-	float ratio = w * 1.0 / h;
+	if (colorIsShrinking)
+		color -= delta_c;
+	else
+		color += delta_c;
 
-	// Use the Projection Matrix
-	glMatrixMode(GL_PROJECTION);
+	if (move_x > 1)
+		delta_move_x = -1;
+	if (move_x < -1)
+		delta_move_x = 1;
 
-	// Reset Matrix
-	glLoadIdentity();
+	if (move_y > 0.5)
+		delta_move_y = -1;
+	if (move_y < -0.5)
+		delta_move_y = 1;
 
-	// Set the viewport to be the entire window
-	glViewport(0, 0, w, h);
+	if (scale > 0.4)
+		delta_scale = -1;
+	if (scale < 0.2)
+		delta_scale = 1;
 
-	// Set the correct perspective.
-	gluPerspective(45.0f, ratio, 0.1f, 100.0f);
-
-	// Get Back to the Modelview
-	glMatrixMode(GL_MODELVIEW);
+	glutPostRedisplay();
+	if (control_anim == 0)
+	glutTimerFunc(60, anim_timer, 0);
 }
 
+// Computes new X
 
-unsigned char chooseColor(ComplexNumber c, unsigned char max_count)
+float compX(float move)
 {
-	ComplexNumber z;
-	unsigned char count = 0;
-	float max_norm = 10;
+	if (delta_move_x > 0)
+		move += 0.03;
+	else
+		move -= 0.03;
 
-	z.im = 0;
-	z.re = 0;
+	return move;
+}
+
+// Computes new Y
+
+float compY(float move)
+{
+	if (delta_move_y > 0)
+		move += 0.03;
+	else
+		move -= 0.03;
+
+	return move;
+}
+
+// Computes new Scale
+
+float compScale(float scale)
+{
+	if (delta_scale > 0)
+		scale += 0.005;
+	else
+		scale -= 0.005;
+
+	return scale;
+}
+
+// Drawing function
+
+void display(void)
+{
+	float pixRe, pixIm, zNewRe, zNewIm, zOldRe, zOldIm;
+	int x, y, i;
+	int maxIterations = 255;
 	
-	while (count++ < max_count)
-	{
-		z = complexSum(complexSquare(z), c);
-		if (complexNorm(z) > max_norm)
-			return count;
-	}
+	win_width = glutGet(GLUT_WINDOW_WIDTH);
+	win_height = glutGet(GLUT_WINDOW_HEIGHT);
 
-	return 0;
-}
+	if (delta_move_x)
+		move_x = compX(move_x);
+	if (delta_move_y)
+		move_y = compY(move_y);
+	if (delta_scale)
+		scale = compScale(scale);
 
-void drawMandelbrot()
-{
-	ComplexNumber c;
-
-	for (int y = 0; y < screen_height; y++)
-	for (int x = 0; x < screen_width; x++)
-	{
-		c.re = transx - scale + (2 * scale * x) / screen_width;
-		c.im = transy - scale + (2 * scale * y) / screen_height;
-		image[3*y*screen_width+3*x+1] = 10000 * chooseColor(c, 64);
-	}
-
-}
-
-
-void display()
-{
-	image = (unsigned char*)malloc(screen_width * screen_height * 3 * sizeof(unsigned char));
-
-	drawMandelbrot();
 	glClear(GL_COLOR_BUFFER_BIT);
-	glDrawPixels(screen_width, screen_height, GL_RGB, GL_UNSIGNED_BYTE, image);
-
 	
-	glutSwapBuffers();
-	free(image);
-}
+	glBegin(GL_POINTS);
 
-void processSpecialKeys(int key, int x, int y) {
-	int mod;
-	mod = glutGetModifiers();
-
-	switch (key)
+	for (int x = 0; x < win_width; x++)
+	for (int y = 0; y < win_height; y++)
 	{
-	case GLUT_KEY_UP:
-		//moving up
-		if (mod == GLUT_ACTIVE_ALT)
-			transy += 0.09f;
-		else
-			transy += 0.03f;
-		break;
-	case GLUT_KEY_DOWN:
-		//moving down
-		if (mod == GLUT_ACTIVE_ALT)
-			transy -= 0.09f;
-		else
-			transy -= 0.03f;
-		break;
-	case GLUT_KEY_LEFT:
-		//moving left
-		if (mod == GLUT_ACTIVE_ALT)
-			transx -= 0.09f;
-		else
-			transx -= 0.03f;
-		break;
-	case GLUT_KEY_RIGHT:
-		//moving right
-		if (mod == GLUT_ACTIVE_ALT)
-			transx += 0.09f;
-		else
-			transx += 0.03f;
-		break;
-	case GLUT_KEY_F1:
-		//scaling up resulting image
-		if (mod == GLUT_ACTIVE_ALT)
-			scale -= 0.09f;
-		else
-			scale -= 0.03f;
-		break;
-	case GLUT_KEY_F2:
-		//scaling down resulting image
-		if (mod == GLUT_ACTIVE_ALT)
-			scale += 0.09f;
-		else
-			scale += 0.03f;
-		break;
+		pixRe = (x - win_width / 2) / (scale* win_width)+move_x;
+		pixIm = (y - win_height / 2) / (scale * win_height)+move_y;
+
+		zOldIm = zOldRe = 0;
+
+		glColor3f(0, 0, 0);
+
+		for (i = 0; i < maxIterations; i++)
+		{
+			zNewRe = zOldRe * zOldRe - zOldIm * zOldIm + pixRe;
+			zNewIm = 2 * zOldRe * zOldIm + pixIm;
+
+			if ((zNewRe * zNewRe + zNewIm * zNewIm) > 4)
+			{
+				glColor3f(1 * i / 255.0f + color, 0.2, ((i%4)/4.0)/color);
+				break;
+			}
+
+			zOldRe = zNewRe;
+			zOldIm = zNewIm;
+		}
+
+		pixRe = (x - win_width / 2) / (0.5 * win_width);
+		pixIm = (y - win_height / 2) / (0.5 * win_height);
+		glVertex2f(pixRe, pixIm);
 	}
+
+	glEnd();
+
+	glutSwapBuffers();
 }
 
-void processNormalKeys(unsigned char key, int x, int y) {
-
-	if (key == 27)
-		exit(0);
-}
-
-int main(int argc, char *argv[])
+int main(int argc, char** argv)
 {
-	// Create OpenGL window
+	//Initialize glut
 	glutInit(&argc, argv);
-	glutInitWindowSize(screen_width, screen_height);
-	glutInitWindowPosition(0, 0);
-	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+	glutInitWindowPosition(100, 100);
+	glutInitWindowSize(win_width, win_height);
+	glDisable(GL_TEXTURE_2D);
+
 	glutCreateWindow("Mandelbrot");
 
-	// Specify callback function
+	//Register callback functions
 	glutDisplayFunc(display);
-	glutReshapeFunc(changeSize);
-	glutIdleFunc(display);
-	glutKeyboardFunc(processNormalKeys);
-	glutSpecialFunc(processSpecialKeys);
+	glutTimerFunc(45,anim_timer, 0);
+
+
 	glutMainLoop();
+
 	return 0;
 }
